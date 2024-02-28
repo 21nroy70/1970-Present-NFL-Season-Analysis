@@ -1,8 +1,11 @@
-NFL Season Analysis Project
-Overview
-Welcome to my NFL Season Analysis Project! This project is the culmination of my efforts in STAT 1341, where I delved into analyzing NFL seasons from the 1970s to the present day. By integrating concepts from Lectures 15-22 and earlier statistical analysis, I aimed to gain deeper insights into the performance of NFL teams over the years.
+# NFL Season Analysis Project
 
-Project Highlights
+### Overview
+
+## I delved into analyzing NFL seasons from the 1970s to the present day. By integrating statistical analysis, I aimed to gain deeper insights into the performance of NFL teams over the years.
+
+
+### Project Highlights
 Selected Season: NFL from 1970s to Present
 Season Overview and Format: Explored major events, league structure, and team compositions.
 Relevant Statistics: Analyzed key metrics to understand team performance.
