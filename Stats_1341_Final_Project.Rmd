@@ -1,0 +1,844 @@
+---
+title: "Final Project"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r}
+require(moments)
+library(tidyverse)
+```
+
+Reading In And Cleaning The Data:
+
+```{r,data_reading_and_cleaning, message = FALSE, include=FALSE}
+nfl_data <- read.csv("nfl_data.csv", sep = ',')
+nfl_initial_elo <- read.csv("nfl_initial_elos.csv", sep = ',')
+
+nfl_initial_elo <- nfl_initial_elo %>% filter(conference != 'NA')
+
+nfl_data <- nfl_data %>% filter(home_team != 'Brooklyn Dodgers', home_team != 'Card Pitt Carpets', home_team != 'Cincinnati Reds', home_team != 'Baltimore Colts (1st)',  home_team != 'Phil Pitt Steagles', away_team != 'Brooklyn Dodgers', away_team != 'Card Pitt Carpets', away_team != 'Cincinnati Reds', away_team != 'Baltimore Colts (1st)',  away_team != 'Phil Pitt Steagles', season >= 1970)
+
+nfl_data$score_diff <-  nfl_data$home_score - nfl_data$away_score
+
+
+```
+
+
+```{r,echo =FALSE}
+nfl_data %>% glimpse()
+```
+
+```{r,echo =FALSE}
+nfl_initial_elo %>% glimpse()
+```
+
+## Season Overview and Format:
+
+> In the NFL, there are 32 teams, 8 divisions (AFC/NFC North, AFC/NFC East, AFC/NFC West, AFC/NFC South). Each of the 8 divisions contain 4 teams -> making 32 teams total. There is the regular season, playoffs, and superbowl. I decided to choose the 1970-2022 NFL season because it gives a broad and well enough data to organize the best teams and perform the many calculations. This also gets rid of any rules that influenced past game and removes the teams that are no longer in the leaugue currently. 
+
+## Statistical Summary of Relevant Statistics: 
+
+```{r, statistical_summary,echo =FALSE}
+team_stats <- nfl_data %>%
+  group_by(team = coalesce(home_team, away_team)) %>%
+  summarise(
+    avg_points_scored = mean(ifelse(home_team == team, home_score, away_score)),
+    avg_points_allowed = mean(ifelse(home_team == team, away_score, home_score)),
+    score_diff = mean(score_diff) # home - away
+  )
+
+# Display the summary statistics
+summary_stats <- team_stats %>%
+  summarise(
+    mean_points_scored = mean(avg_points_scored),
+    mean_points_allowed = mean(avg_points_allowed),
+    sd_points_scored = sd(avg_points_scored),
+    sd_points_allowed = sd(avg_points_allowed),
+    mean_points_diff = mean(score_diff),
+    sd_points_diff = sd(score_diff),
+  )
+
+
+ggplot(team_stats, aes(x = team, y = avg_points_scored)) +
+  geom_bar(aes(y = avg_points_scored, fill = "Points Scored"), stat = "identity", alpha = 0.7) +
+  geom_bar(aes(y = avg_points_allowed, fill = "Points Allowed"), stat = "identity", alpha = 0.7) +
+  labs(title = "Average Points Scored and Allowed per Team",
+       y = "Average Points",
+       x = "Team") +
+  labs(title = "Average Points Scored per Game",
+       y = "Average Points Scored",
+       x = "Team") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  scale_fill_manual(values = c("Points Scored" = "blue", "Points Allowed" = "red"), name = "Statistics")
+
+```
+
+
+```{r,statistical_summary_2,echo =FALSE}
+ggplot(team_stats, aes(x = team, y = score_diff)) +
+  geom_bar(aes(y = score_diff, fill = 'orange'), stat = "identity", alpha = 0.7) + 
+  labs(title = "Average Score Differential Home - Away",
+       y = "Score Differential Home - Away",
+       x = "Team") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+   
+```
+
+
+```{r,echo =FALSE}
+ggplot(team_stats, aes(x = avg_points_scored)) +
+  geom_histogram(fill = "blue", alpha = 0.7, bins = 12) +
+  labs(title = "Distribution of Points Scored",
+       y = "Frequency",
+       x = "Points")
+
+```
+
+
+```{r,echo =FALSE}
+ggplot(team_stats, aes(x = avg_points_allowed)) +
+  geom_histogram(fill = "red", alpha = 0.7, bins = 12) +
+  labs(title = "Distribution of Points Allowed",
+       y = "Frequency",
+       x = "Points") 
+```
+
+
+```{r,echo =FALSE}
+ggplot(team_stats, aes(x = score_diff)) +
+  geom_histogram(fill = "green2", bins = 12) +
+  labs(title = "Distribution of Points Differential",
+       y = "Frequency",
+       x = "Points Differential")
+```
+
+
+```{r,statistical_summary_4,echo =FALSE}
+summary_stats
+```
+
+## Discussion of Relevant Statistics: 
+
+> I decided to mutate and add some columns where I preformed some basic calculations in statsitics. For example, I created and summarized 3 columns: average points scored, average points allowed, and average point differential across each of the 32 teams. I decided to do this because it makes it cleaner to view each of the 32 teams and their statistics, rather than looking at 10 thousand + rows for each individual game. Thus, by creating summary caluclations like average (mean), it helps organize average points scored, allowed, and point differential for each team. Likewise, I created a new small table that incorperated the overall summary statistics for all 32 teams into 1 row. I have calculated the average and standard deviation of all 32 teams based on their points scored, points allowd, and point differentiable: both the average and standard deviation are shown and calclulated in the table above. 
+
+> Looking at the distributions, the points scored looks slighly left skewed with an average of roughly 22 points. Looking at the distribution of points allowed, the plot contains values smaller than points scored indicating that teams score more points than they give up/allowed (as supported by the double stakced barchart called Average Points Per Game), and finally, the point differential is mostly positive - with more teams that are home tending to score more points since the point differential is positive (home score - away score). 
+
+> The summary statsitics at the end shows a positive gap for points scored and points allowed across the averages in the 32 NFL teams, indicating that the points scored is greater on average than points allowed. This is heavily supported by the statistics showing a postive average point differential.
+
+> Likewise, the summary statistics in the table above indicate the average points scored is more than the average points allowed, making logical sense to the reason that point differential average is positive. Similarly, the standard deviation is greater for points scored than allowed, but pretty similar to each other. 
+
+
+
+## Creation of Scoring Distribution:
+
+```{r,echo =FALSE}
+# Create histogram of above variable with normal distribution overlaid
+hist(nfl_data$score_diff, probability = TRUE, xlab = "NFL Points Differential") 
+curve(dnorm(x, mean = mean(nfl_data$score_diff), sd = sd(nfl_data$score_diff)), col = "red", lwd = 2, add = TRUE, yaxt = "n")
+```
+
+```{r,echo =FALSE}
+mean(nfl_data$score_diff)
+sd(nfl_data$score_diff)
+skewness(nfl_data$score_diff)
+```
+
+
+```{r,echo =FALSE}
+# Create normal probability plot of variable
+qqnorm(nfl_data$score_diff, pch = 19)
+qqline(nfl_data$score_diff)
+```
+
+
+```{r,echo =FALSE}
+plot(nfl_data$home_score, nfl_data$away_score, xlab = "Home Score", ylab = "Away Score")
+```
+
+
+```{r,echo =FALSE}
+cor(nfl_data$home_score, nfl_data$away_score)
+
+```
+
+
+```{r,echo =FALSE}
+plot(team_stats$avg_points_scored, team_stats$avg_points_allowed, xlab = "Average Points Scored", ylab = "Average Points Allowed")
+```
+
+
+```{r,echo =FALSE}
+cor(team_stats$avg_points_scored, team_stats$avg_points_allowed)
+```
+
+
+## Discussion of Scoring Distribution:
+
+> Looking at the section, the first plot displays the distribution of point differential across all games in the NFL From 1970 - 2022 season. As shown, it appears to be approximately a normal distribution, centered just over 1. I calculated the average and it was roughly 2.7. To help confirm and validate the normal shape of the data, I plotted a red curve over the bars and calculated the skewness, which was very close to 0 - so we know there is no skewness of any sort. Likewise, it makes sense for the point differentiable to be closer/occur most frequently as around 2-3 points than a large number because a lot of NFL games end in a close fashion. To conclude working with the normality of point differential, I plotted a normality plot on that variable. For the most part, the normality plot appears to be linear with the data points. It really starts to deviate from the diagonal line towards the beginning and end of the data points- and this makes sense since point differential is symmetric (ex. one team wins by 15 points so the other team loses by 15 points, making it + 15 for the winning teams and -15 for the losing team). Thus, we are safe to say we can assume normality of point differential across the NFL seasons 1970 - 2022. 
+
+> Furthermore, I plotted a scatterplot of home and away scores, and it visually shows no correlation. To validate this, I quickly calculated and displayed the correlation between these 2 variable below the scatterplot, and the value was very close to being 0 - indicating no correlation between home and away scores. However, one interesting thing I noticed when concluding this section was that there was a slightly moderate negative correlation (-0,383) between the averages of home and away scores, which is not what I expected, I believe this is because of the earlier summary sections that I calculated and visualized before, where teams typically scored more points than they allowed causing positive point differentials. Thus, this aligns with the negative moderate correlation where the higher points scored typically result in fewer points allowed for a particular game across 1970 - 2022. 
+
+
+
+## Calculation of Pythagorean Win Percentages - Only using 2018 Season: 
+
+```{r,echo =FALSE}
+
+nfl_2018 <- read.csv("nfl_scoring.csv", sep = ",")
+
+
+model = lm(log(wins/losses) ~ 0 + log(scored/allowed), data = nfl_2018)
+summary(model)
+```
+
+
+```{r,echo =FALSE}
+nfl_2018$wpct = nfl_2018$wins / (nfl_2018$wins + nfl_2018$losses)
+nfl_2018$pyth_wpct = nfl_2018$scored^coef(model) / (nfl_2018$scored^coef(model) + nfl_2018$allowed^coef(model))
+nfl_2018$error1 = nfl_2018$wpct - nfl_2018$pyth_wpct
+
+```
+
+
+```{r,echo =FALSE}
+hist(nfl_2018$wpct, col = 'gold', xlab = "Regular winning percentages")
+```
+
+
+```{r,echo =FALSE}
+hist(nfl_2018$pyth_wpct, col = 'turquoise', xlab = "Pythagorean winning percentages")
+```
+
+
+```{r,echo =FALSE}
+hist(nfl_2018$error1, col = 'maroon2', xlab = "Errors")
+```
+
+
+```{r,echo =FALSE}
+plot(nfl_2018$pyth_wpct, nfl_2018$wpct, xlab = "Pythagorean Winning Percentage", ylab = "Actual Winning Percentage", pch = 19, col = "magenta4")
+
+abline(a = 0, b = 1)
+```
+
+
+```{r,echo =FALSE}
+cat("Correlation between Pythagorean Win Percentage and Actual Win Percentage: ", cor(nfl_2018$pyth_wpct, nfl_2018$wpct))
+```
+
+```{r,echo =FALSE}
+#Teams that overachieved and underachieved in the 2018 - 2022 season
+
+#Number of teams that overachieved:
+
+over <- nrow(nfl_2018[nfl_2018$error1 > 0, ])
+under <- nrow(nfl_2018[nfl_2018$error1 < 0, ])
+
+cat("Number of teams that overachieved: ", over, "\n\n")
+
+#Number of teams that underachieved:
+
+cat("Number of teams that underachieved: ", under, "\n\n")
+
+#Overachieved:
+
+cat("2022 Minnesota Vikings overachieved the most with a residual/error value of: ",max(nfl_2018$error1), "\n\n")
+
+#Underachieved:
+
+cat("2020 Atlanta Falcons underachieved the most with a residual/error value of: ",min(nfl_2018$error1))
+
+```
+
+
+## Discussion of Pythagorean Win Percentages: 
+
+> The histogram of the actual winning percentage is clearly normally distributed, centered at roughly 0.45 - 0.5. However, the Pythagorean winning percentage is a bit less normally distributed. If any skewness, it could possibly be a very slight right skew, centered at roughly 0.45 - 0.5 as well. Finally, The errors are right-skewed but centered at roughly 0, indicating very close residuals or differences between these 2 winning percentages. After plotting those 3 histograms, I created a scatterplot where I plotted the Pythagorean winning percentage with the actual winning percentage. The black line is linear with a constant slope of 1, so values above the line have a higher actual winning percentage than the Pythagorean winning percentage - and vice versa where values below the line have a higher Pythagorean winning percentage than the actual winning percentage. Just looking at the scatterplot visually, it appears that the data is along or very close to above and below the line. Finally, the correlation calculated was around 89.3% so there is a strong positive linear relationship between the 2 variables. 
+
+> As for the teams that overachieved and underachieved, I looked at all the teams from the 2018 - 2022 season and calculated their Pythagorean win percentage, actual win percentage (generated in the dataset given), and their errors, which is the residual or difference between actual winning percentage and Pythagorean winning percentage. Thus, teams with a positive residual or error overachieved (actual > predicted Pythagorean), and teams with negative errors underachieved ((actual < predicted Pythagorean). Thus, the output displays that 82 teams overachieved and 78 teams underachieved. The team that overachieved the most was the 2022 Minnesota Vikings where they had 13 wins and only 4 losses making them have a 76.5% actual winning percentage, and the Pythagorean predicted they would only produce  roughly 49.5% winning percentage. Thus, this team overachieved the most as they exceed the expectations the post, as calculated in the errors column. Out of their 13 wins, they won all 11 of their close games they were involved in that season, making them have more wins by winning close games which increased their actual winning percentage. 
+
+> The 2020 Atlanta Falcons underachieved the most, with the largest negative error. The Pythagorean predicted a winning percentage of roughly 46.83%, but the 2020 Falcons actually achieved an actual winning percentage of 25%. Thus, this makes them the most underachieved team from the 2018 - 2022 seasons - because they have the most extreme negative error/residual amongst all teams in the subset of the NFL seasons.  
+
+
+## Calculation of Bradley-Terry Ratings for Year 2022:
+
+```{r,echo =FALSE}
+smaller_data <- nfl_data %>% filter(season == 2022)
+#smaller_data %>% glimpse()
+
+# Create empty data frame for margin of victory, game location, and one column for each team
+nfl_data_2 = as.data.frame(matrix(nrow = 285, ncol = 34))
+
+# Identify unique names of all 32 NFL teams
+teams = sort(unique(smaller_data$home_team))
+
+# Replace generic column names in 'nfl_data' data frame with columns for margin of victory, location, and the 32 team names
+colnames(nfl_data_2) = c("MoV", "Location", teams)
+
+# Replace all entries in data frame with 0
+nfl_data_2[is.na(nfl_data_2)] = 0
+
+# The following loop iterates through all 32 teams.  For each team, the first line sets the value equal to 1 if that team was at home and 0 otherwise.  The second line sets the value equal to -1 if that team was away and 0 otherwise.  These two lists are added together so that 16 entries are not 0: the 8 home games and the 8 away games.  These are the only 16 games the team played in, which is why the other 240 games are set equal to 0 in that team's column
+
+for (i in 1:length(teams)) {    # Iterate through all teams
+    home = as.integer(smaller_data$home_team == teams[i])      # Set row equal to 1 if current team was at home
+    away = -1*as.integer(smaller_data$away_team == teams[i])   # Set row equal to -1 if current team was away
+    team_locations = home + away                             # Combine 1's, 0's, and -1's to identify all games for current team
+    nfl_data_2[, i+2] = team_locations                         # Replace column of 0's with 1's and -1's for all games they played in
+}
+
+# Set margin of victory to be home score minus away score
+nfl_data_2$MoV = smaller_data$home_score - smaller_data$away_score
+
+# Set game location to be 1 if the home team was in their home stadium; set equal to 0 if the game was played at a neutral location with a designated home team.  This normally needs to be done manually in practice, but will always be provided for you in the original dataset for the purposes of this course.
+nfl_data_2$Location = smaller_data$location
+```
+
+
+```{r,echo =FALSE}
+# Fit Unadjusted Bradley-Terry model
+model = lm(MoV ~ 0 + ., data = nfl_data_2)
+
+# Extract only coefficients from model summary
+coefficients = coef(model, complete = TRUE)
+
+# Change baseline team's rating from NA to 0 so every team has a numeric value
+coefficients[length(coefficients)] = 0
+
+
+# Calculate the amount ratings need to be adjusted by, equal to the sum of the coefficients for the teams that are not the baseline divided by the number of teams in the league
+adjustment = -1 * sum(coefficients[2:length(coefficients)]) / (length(coefficients) - 1)
+
+# Adjust the ratings by adding the adjustment to each team's rating, leaving the intercept alone.  The sum of the coefficients should now be equal to the intercept, meaning the average rating for all teams is 0.
+ratings = c(coefficients[1], coefficients[2:length(coefficients)] + adjustment) 
+ratings <- as.data.frame(ratings)
+ratings
+```
+
+```{r,echo =FALSE}
+summary(model)
+```
+
+
+```{r,echo =FALSE}
+# Calculate predicted margin of victory based on team ratings and residuals between actual margin and predicted margin
+predicted = predict(model)
+residuals = residuals(model)
+```
+
+
+```{r,echo =FALSE}
+# Create residual plot of residuals against predicted margin of victory
+plot(predicted, residuals, pch = 19, xlab = "Predicted Margin of Victory", ylab = "Residual")
+abline(a = 0, b = 0, col = 'red' )
+```
+
+```{r,echo =FALSE}
+# Histogram of residuals
+hist(residuals, xlab = "Residual", breaks = 12, col = 'pink')
+```
+
+
+```{r,echo =FALSE}
+qqnorm(residuals, pch = 19)
+qqline(residuals)
+```
+
+
+```{r,echo =FALSE}
+plot(ratings$ratings, col = 'brown')
+```
+
+## Discussion of Bradley-Terry:
+
+> 
+After running the Bradley Terry model and plotting the residuals and predicted margin of victory, there appears to be no correlation between the predicted margin of victory and residuals. This is supported by the histogram below the scatterplot where it is approximately normal and centered at roughly 0. The normality plot contains the points on the diagonal line pretty well in the center of the quintiles; however, it deviates towards the ends. 
+
+> Now looking at the unadjusted Bradley Terry model (named model), Washington is labeled NA because it treated them as the baseline category. Thus, we can interpret the coefficients from the model as the number of points that team compared to Washington. For example, the best team, the Buffallo Bills were better than Washington the most because it has the highest positive coefficient value. However, the coefficients must be adjusted, which is what was done and stored in the “results” table. In this table, you can see that the best team was the Buffalo Bills, with the highest adjusted rating of 9.365. Similarly, the worst team with the largest adjusted value in the negative direction is the Houston Texans, having the lowest coefficient value of -8.36. There were a couple teams that were close to average (within + and - 1); these teams included: New York Jets, Green Bay Packers, Cleveland Browns, Pittsburgh Steelers, Minnesota Vikings, Los Angeles Chargers, and New York Giants. 
+
+
+## Simulated Regular Season Results:
+
+```{r,echo =FALSE}
+# Specify season to simulate
+simulated_season = 2022
+
+# Read in list of all games
+scores = read.table("nfl_data.csv", header = TRUE, sep = ",")
+
+# Read in initial Elo rating, conference, and division
+team_info = read.table("nfl_initial_elos.csv", header = TRUE, sep = ",")
+
+# Obtain list of unique conference names and unique division names
+conferences = na.omit(unique(team_info$conference))
+divisions = na.omit(unique(team_info$division))
+
+# Create list of games that occurred prior to season being simulated
+pre_season = scores[which(scores$season < simulated_season & scores$season >= 1901),]
+
+# Create list of regular season games for season being simulated
+season_schedule = scores[which(scores$season == simulated_season & (scores$game_type == "r" | scores$game_type == "np")),]
+```
+
+
+```{r,echo =FALSE}
+#Calculate initial Elo ratings
+
+
+# Input the optimal k factors (weight) and home field advantage
+hfa = 53.67
+weight = 17.9
+
+# Identify if ties exist in the sport, which determines if an additional 0.5 needs to be added to the margin of victory
+if (sum(scores$tie) > 0) {
+    tie_adj = 0.5 
+} else {
+    tie_adj = 0
+}
+
+# Iterate through all games in the sport's history up to season being simulated
+for(i in 1:nrow(pre_season)) {
+    # Find indices corresponding to home and away teams for current game
+    home_index = which(team_info$team == pre_season$home_team[i])
+    away_index = which(team_info$team == pre_season$away_team[i])
+    
+    # Find home and away team Elo ratings
+    home_elo = team_info$rating[home_index]
+    away_elo = team_info$rating[away_index]
+    
+    # Calculate home team win probability
+    win_prob = 1 / (10^((away_elo - (home_elo + hfa*pre_season$location[i]))/400) + 1)
+    
+    # Calculate actual margin of victory - must be positive
+    score_diff = abs(pre_season$home_score[i] - pre_season$away_score[i])
+    
+    # Determine home team result
+    if(pre_season$home_score[i] > pre_season$away_score[i]) { 
+    home_result = 1  # Home team wins
+    } else if(pre_season$home_score[i] < pre_season$away_score[i]) { 
+    home_result = 0  # Home team loses
+    } else { 
+    home_result = 0.5  # Tie
+    }
+    
+    # Calculate amount each team's Elo rating is adjusted by
+    home_elo_adjustment = weight * log(score_diff + 1 + tie_adj) * (home_result - win_prob)
+
+  
+    # Adjust Elo ratings - add point to winner and subtract points from loser
+    team_info$rating[home_index] = team_info$rating[home_index] + home_elo_adjustment
+    team_info$rating[away_index] = team_info$rating[away_index] - home_elo_adjustment
+    
+    # Adjust Elo ratings at end of season to regress 1/3 of the way towards 1500
+    if(i < nrow(scores) && scores$season[i+1] > scores$season[i]) {
+        for(j in 1:nrow(team_info)) {
+            if(scores$season[i] >= team_info$inaugural_season[j]) {
+                team_info$rating[j] = team_info$rating[j] - (team_info$rating[j] - 1500)/3
+                }
+        }
+    
+        # Identify all teams that existed at beginning of following season
+        existing_teams = team_info[which(team_info$inaugural_season <= (scores$season[i] + 1)),]
+    
+        # Calculate amount each team's Elo rating must be adjusted by to make mean 1500
+        expansion_adjustment = -1*(mean(existing_teams$rating) - 1500)
+    
+        # Perform expansion adjustment on teams that existed at beginning of following season
+        for(j in 1:nrow(team_info)) {
+            if((scores$season[i] + 1) >= team_info$inaugural_season[j]) {
+                team_info$rating[j] = team_info$rating[j] + expansion_adjustment
+            }
+        }
+    }
+}
+```
+
+
+
+## Simulate season
+
+```{r,echo =FALSE}
+# Set seed for replication purposes
+set.seed(31)
+
+# Determine number of times to simulate the season
+iterations = 10000
+
+# Create data frame to hold Elo ratings, actual win totals, and simulation results
+results = data.frame(matrix(0, ncol = 6, nrow = nrow(team_info)))
+colnames(results) = c("team", "starting_elo", "ending_elo", "actual_wins", "average_wins", "division_titles")
+results$team = team_info$team
+
+# Create data frame to hold number of wins by each team in each iteration
+win_totals = data.frame(matrix(0, ncol = nrow(team_info), nrow = iterations))
+colnames(win_totals) = team_info$team
+
+# Simulate the season the given number of times
+for(i in 1:iterations) {
+    if(i %% 1000 == 0) {print(i)}
+    season_stats = team_info[,which(colnames(team_info) != "inaugural_season")]
+    season_stats$wins = 0
+    season_stats$rand = runif(nrow(team_info))
+    
+    # Simulate each game in current season
+    for(j in 1:nrow(season_schedule)) {
+        # Find indices corresponding to home and away teams for current game
+        home_index = which(season_stats$team == season_schedule$home_team[j])
+        away_index = which(season_stats$team == season_schedule$away_team[j])
+        
+        # Find home and away team Elo ratings
+        home_elo = season_stats$rating[home_index]
+        away_elo = season_stats$rating[away_index]
+        
+        # Calculate home team win probability
+        win_prob = 1 / (10^((away_elo - (home_elo + hfa*season_schedule$location[j]))/400) + 1)
+        u = runif(1)  # Generate a random number used to determine the winner of the game
+        
+        # Determine which team wins the simulated game and increment their win total by 1
+        if(u < win_prob) {
+            season_stats$wins[home_index] = season_stats$wins[home_index] + 1
+        } else {
+            season_stats$wins[away_index] = season_stats$wins[away_index] + 1
+        }
+    
+        # Calculate actual margin of victory - must be positive
+        score_diff = abs(season_schedule$home_score[j] - season_schedule$away_score[j])
+        
+        # Determine home team result
+        if(season_schedule$home_score[j] > season_schedule$away_score[j]) { 
+          home_result = 1  # Home team wins
+        } else if(season_schedule$home_score[j] < season_schedule$away_score[j]) { 
+          home_result = 0  # Home team loses
+        } else { 
+          home_result = 0.5  # Tie
+        }
+        
+        # Calculate amount each team's Elo rating is adjusted by
+        home_elo_adjustment = weight * log(score_diff + 1 + tie_adj) * (home_result - win_prob)
+        
+        # Adjust Elo ratings after game has been simulated to get team's new strength
+        season_stats$rating[home_index] = season_stats$rating[home_index] + home_elo_adjustment
+        season_stats$rating[away_index] = season_stats$rating[away_index] - home_elo_adjustment
+    
+        # Track season wins
+        if(i == 1) {
+            if(season_schedule$home_score[j] > season_schedule$away_score[j]) {
+                results$actual_wins[home_index] = results$actual_wins[home_index] + 1
+            } else if(season_schedule$home_score[j] < season_schedule$away_score[j]) {
+                results$actual_wins[away_index] = results$actual_wins[away_index] + 1
+            } else {
+                results$actual_wins[home_index] = results$actual_wins[home_index] + 0.5
+                results$actual_wins[away_index] = results$actual_wins[away_index] + 0.5
+            }
+        }
+    }
+
+    # Define data frame that contains division winners
+    division_winners = data.frame(matrix(ncol = 6, nrow = 0))
+    colnames(division_winners) = c("team", "conference", "division", "rating", "wins", "rand")
+  
+    # For each division
+    for(div in divisions) {
+        div_standings = season_stats[which(season_stats$division == div),]  # Identify all teams in current division
+        div_standings = div_standings[order(-div_standings$wins, -div_standings$rand),]  # Sort division by wins and random number
+        division_winners = rbind(division_winners, div_standings[1,])  # Add division winner to 'division_winners' data frame
+    }
+  
+    # Save end of season win totals (from column 5 of season_stats) for each iteration in the win_totals data frame
+    win_totals[i,] = t(season_stats[5])
+    
+    # Add number of wins for each team during this iteration to sum
+    results$average_wins = results$average_wins + season_stats$wins
+  
+    # Increment the number of division titles for each division winner by 1
+    for(team in division_winners$team) {
+        index = which(season_stats$team == team)  # Index of division winner
+        results$division_titles[index] = results$division_titles[index] + 1  # Increment division titles
+    }
+}
+ 
+# Calculate average number of wins across all iterations
+results$starting_elo = team_info$rating
+results$ending_elo = season_stats$rating
+results$average_wins = results$average_wins/iterations
+results$division_titles = results$division_titles/iterations
+results$residuals <-  results$actual_wins - results$average_wins #actual - simulated
+results <- results %>% filter(actual_wins != 0)
+
+```
+
+
+```{r,echo =FALSE}
+plot(x = results$average_wins, y = results$actual_wins, col = 'orange2', pch = 19)
+abline(0,1, col = 'red')
+```
+
+
+```{r,echo =FALSE}
+hist(results$residuals, col = 'pink')
+```
+
+Look Ahead of the table created that summarizes the actual win total,
+the simulated number of wins, and the simulated number of division titles
+```{r,echo =FALSE}
+
+results %>% glimpse()
+```
+
+
+## Comparison of Simulation and Actual Regular Season: 
+
+> For this section, I decided to simulate the 2022 NFL season amongst the 32 active teams. Plotting the simulated and actual wins, the scatterplot looks like a relatively positive linear correlation for the most part. There are a handful of points below the linear line; however, it mirrors for the handful of points above the line. The histogram of residuals is slightly left-skewed  but close to approximately 0. Now, looking at the results of the Monte Carlo simulation, I stored 6 columns in the “results” table: 2022 season team, starting elo, ending elo, actual wins, average wins (simulated predicted wins), division titles, and residuals of actual wins subtracted by the simulated wins. Thus, the team with the greatest positive residual is the Jacksonville Jaguars, as they achieved more wins (9) than simulated/expected (6.06). 
+
+> On the other side, the Indianapolis Colts had the smallest residual value - the greatest extreme value in the negative direction. This is very interesting because the Colts and Jaguars are in the same division - afc south. Thus, since the Jaguars had the greatest positive residual, they overachieved the most. However, their predicted or simulated wins was roughly 6. The Colts, on the other hand, had a higher predicted win total of around 8.56 wins. Thus, when we look at the divison_winners table of the teams that won each of the 8 divisions, the model had the Colts winning the division because of their higher simulated average win total. However, they underperformed massively and the Jaguars overperformed, so the Jaguars truly won the division that year rather than the Colts since they had the most wins amongst the other 3 teams in the AFC South. Thus, I found this interesting how the team that underachieved (the Colts) was predicted to win the division, but in reality, the team that overachieved the most (The Jaguars) won that division in real life. 
+
+> As for the division winners compared to who won the division, the model did pretty poorly in predicting who would win the division in the 2022 season. The teams that the model correctly predicted won their division were the Philadelphia Eagles, Kansas City Chiefs, and Minnesota Vikings. Thus, the Monte Carlo simulation correctly predicted 50% of the teams that truly won the division in the 2022 NFL season. 
+
+
+## Analysis of Overachieving Team - Jacksonville Jaguars:
+
+```{r,echo =FALSE}
+hist(win_totals$`Jacksonville Jaguars`, col = 'green4')
+```
+
+
+> As mentioned earlier, The Jacksonville Jaguars overachieved the most during the 2022 NFL season. Specifically, the simulation had them winning roughly 6.06 games (basically 6), but in reality, they won 9 games and won their respective division that year. When looking back at the Pythagorean winning percentage for the 2018 - 2022 seasons, the Jaguars in 2022 had a relatively small residual, where the Pythagorean winning percentage was slightly higher than their actual winning percentage. Likewise, when you sort the Pythagorean winning percentage from least to greatest, you can see the 2020 and 2021 Jaguars listed as the top 10 with the lowest simulated win percentage, so this definitely influenced their expected win percentage in the following season. Furthermore, the scatterplot displays the frequency of the win total the Monte Carlo simulation predicted the Jags based on 10,000 iterations. As illustrated, it is pretty normally distributed, centered at roughly 5 wins. 9 and more wins were no not as frequent as  3 - 7 wins were, making the Jaguars have such a high residual when comparing their simulated and actual winning percentage. 
+
+
+## Analysis of Underachieving Team - Indianapolis Colts:
+
+```{r,echo =FALSE}
+hist(win_totals$`Indianapolis Colts`, col = 'red2')
+
+```
+
+
+> The most underachieving team in the 2022 season based on the Monte Carlo simulation was the Indianapolis Colts, as mentioned earlier. Looking at the histogram plotted for the Colts, it is normally distributed, centered at roughly 7.5 - 8 wins, However, they actually got 4.5 wins that season, which very infrequent as compared to the other values. Thus, this resulted in a large negative residual as they deviated away from the simulated/expected wins. They were even expected to win the division that year, but failed to make the playoffs that season. Similar to the Jaguars, their residuals for the Pythagorean residuals is very minimal, meaning their Pythagorean win percentage was close to their actual winning percentage. 
+
+
+## Preseason and Postseason Elo Ratings For 2022 season:
+
+```{r,echo =FALSE}
+# Read in initial team Elo ratings and history of games
+elos = read.table("nfl_initial_elos.csv", header = TRUE, sep = ",")
+scores = read.table("nfl_data.csv", header = TRUE, sep = ",")
+
+
+# Input the optimal k factors (weight) and home field advantage
+weight = 17.9
+hfa = 53.67
+
+
+# Identify if ties exist in the sport, which determines if an additional 0.5 needs to be added to the margin of victory
+if (sum(scores$tie) > 0) {
+    tie_adj = 0.5 
+} else {
+    tie_adj = 0
+}
+
+
+# Select team and season to follow over a specified period of time
+team = "Pittsburgh Steelers"
+first_season = 2022
+last_season = 2022
+
+
+# Create data frame to store information for team specified above
+team_results = data.frame(matrix(ncol = 10, nrow = 0))
+colnames(team_results) = c("opponent", "pregame_elo", "opponent_pregame_elo", "win_probability", "result", "team_score", "opponent_score", "elo_adjustment", "postgame_elo", "opponent_postgame_elo")
+
+# Iterate through all games in the sport's history
+for(i in 1:nrow(scores)) {
+    # Find indices corresponding to home and away teams for current game
+    home_index = which(elos$team == scores$home_team[i])
+    away_index = which(elos$team == scores$away_team[i])
+    
+    
+    # Find home and away team Elo ratings
+    home_elo = elos$rating[home_index]
+    away_elo = elos$rating[away_index]
+    
+    
+    # Calculate home team win probability
+    win_prob = 1 / (10^((away_elo - (home_elo + hfa*scores$location[i]))/400) + 1)
+    
+    
+    # Calculate actual margin of victory - must be positive
+    score_diff = abs(scores$home_score[i] - scores$away_score[i])   
+    
+    
+    # Determine home team result
+    if(scores$home_score[i] > scores$away_score[i]) { 
+        home_result = 1  # Home team wins
+    } else if(scores$home_score[i] < scores$away_score[i]) { 
+        home_result = 0  # Home team loses
+    } else { 
+        home_result = 0.5  # Tie
+    }
+  
+    
+    # Calculate amount each team's Elo rating is adjusted by
+    home_elo_adjustment = weight * log(score_diff + 1 + tie_adj) * (home_result - win_prob)
+    
+    
+    # Adjust Elo ratings - add point to winner and subtract points from loser
+    elos$rating[home_index] = elos$rating[home_index] + home_elo_adjustment
+    elos$rating[away_index] = elos$rating[away_index] - home_elo_adjustment
+
+    
+    # Add game information to team result data frame for each team game of the team specified above if team and season both match
+    if(scores$season[i] >= first_season & scores$season[i] <= last_season & (scores$home_team[i] == team | scores$away_team[i] == team)) {
+        if(scores$home_team[i] == team) {  # If specified team was at home
+            team_results[nrow(team_results) + 1,] = c(scores$away_team[i], elos$rating[home_index] - home_elo_adjustment, elos$rating[away_index] + home_elo_adjustment, win_prob, home_result, scores$home_score[i], scores$away_score[i], home_elo_adjustment, elos$rating[home_index], elos$rating[away_index])
+        } else {  # If specified team was away
+            team_results[nrow(team_results) + 1,] = c(scores$home_team[i], elos$rating[away_index] + home_elo_adjustment, elos$rating[home_index] - home_elo_adjustment, 1-win_prob, 1-home_result, scores$away_score[i], scores$home_score[i], -1*home_elo_adjustment, elos$rating[away_index], elos$rating[home_index])
+        }
+    }
+    
+    
+    # Adjust Elo ratings at end of season to regress 1/3 of the way towards 1500
+    if(i < nrow(scores) && scores$season[i+1] > scores$season[i]) {  # New season
+        for(j in 1:nrow(elos)) {  # For each team
+            if(scores$season[i] >= elos$inaugural_season[j]) {  # Check if team existed
+                # Move each team's Elo rating back towards 1500 by 1/3 of the difference
+                elos$rating[j] = elos$rating[j] - (elos$rating[j] - 1500)/3
+            }
+        }
+        
+        
+        # Identify all teams that existed at beginning of following season
+        existing_teams = elos[which(elos$inaugural_season <= (scores$season[i] + 1)),]
+        
+        
+        # Calculate amount each team's Elo rating must be adjusted by to make mean 1500
+        expansion_adjustment = -1*(mean(existing_teams$rating) - 1500)
+        
+        
+        # Perform expansion adjustment on teams that existed at beginning of following season
+        for(j in 1:nrow(elos)) {  # For each team
+            if((scores$season[i] + 1) >= elos$inaugural_season[j]) {  # Check if team existed
+                elos$rating[j] = elos$rating[j] + expansion_adjustment  # Update ratings if so
+            }
+        }
+    }
+}
+
+
+# Create plot of postgame Elo ratings
+if (first_season == last_season) {
+    team_name = paste(first_season, team)
+} else {
+    team_name = paste(paste(first_season, last_season, sep = "-"), team)
+}
+
+elos <- elos %>% filter(conference != 'NA')
+
+
+```
+
+
+```{r,echo =FALSE}
+# Create a scatterplot comparing preseason (x) and postseason (y) Elo ratings
+results %>% ggplot(aes(x = starting_elo, y = ending_elo)) +
+    geom_point(aes(x = starting_elo)) +
+  geom_abline(a = 0,b = 1, col = 'red')
+    labs(title = "Preseason vs. Postseason Elo Ratings",
+         x = "Preseason Elo Rating",
+         y = "Postseason Elo Rating",
+         color = "Season")
+
+```
+
+
+### Best 2 and Worst 2 Teams
+```{r,echo =FALSE}
+best <- order(-results$ending_elo)
+worst <- order(results$ending_elo)
+
+cat("Best Team: ", results[best[1], 1])
+cat("\n2nd Best Team: ", results[best[2], 1])
+
+cat("\nWorst Team: ", results[worst[1], 1])
+cat("\n2nd Worst Team: ", results[worst[2], 1])
+
+
+```
+
+```{r,echo =FALSE}
+division_winners
+```
+
+
+## Discussion of Elo Ratings:
+
+> The scatterplot provided illustrates preseason elo against postseason elo during the 2022 NFL season across the 32 NFL teams. It looks pretty evenly distributed between the teams that finished with a lower elo than they started in the season, and vice versa. The two best teams during that season were the Kansas City Chiefs and the Buffalo Bills, as their ending elos were the highest. In contrast, the Houston Texans and the Chicago Bears were the 2 worst teams during the season, having the lowest elo rating at the end. This makes sense since both teams had the lowest wins during that season. The expected playoff teams were the Miami Dolphins, Pittsburgh Steelers, Indianapolis Colts, Kansas City Chiefs, Philadelphia Eagles, Minnesota Vikings, Los Angeles Rams, and New Orleans Saints. 
+
+> The Jaguars and Eagles seemed to have improved and exceeded the expectations, which is shown in their larger residuals and improved ending elo, which they were predicted to have started with a sub 1500 elo. However, in reality, both teams won their respective divisions and made it to the playoffs, which was a big improvement throughout the season - as the Jaguars were predicted to lose a majority of their games and miss the playoffs, whereas the Eagles were not expected to be as dominant and achieve 14 wins during the 2022 season, which increased their elo ratings. On the other hand, the Colts and Rams had the biggest decline in their seasons because they were expected to win a majority of their games and win their respective divisions. However, they severely underperformed and neither team made the playoffs that year, which was a major decline as their ending elo ratings drastically declined compared to the start of the season. These two teams were meant to achieve a successful season but declined due to the many losses, dropping their elo rating and declining the chance of making the playoffs.
+
+
+## Elo Ratings for One Team:
+
+
+```{r,echo =FALSE}
+par(mfrow = c(1, 2))
+
+# Plot 1
+plot(team_results$postgame_elo, type = "l", xlab = team_name, ylab = "Postgame Elo Rating")
+abline(h = 1511.5, col = 'red')
+title(main = "Postgame Elo Rating")
+
+# Plot 2
+plot(team_results$pregame_elo, type = "l", xlab = team_name, ylab = "Elo Pregame Rating")
+abline(h = 1511.5, col = 'red')
+title(main = "Pregame Elo Rating")
+
+par(mfrow = c(1, 1))  # Reset to the default single-plot layout
+```
+
+
+
+```{r,echo =FALSE}
+#Plot 3
+plot(team_results$win_probability, type = "l", xlab = team_name, ylab = "Win Prob")
+abline(h = 0.5, col = 'red')
+title(main = "Win Probability")
+```
+
+
+```{r,echo =FALSE}
+#Plot 4
+plot(team_results$elo_adjustment, type = "l", xlab = team_name, ylab = "Elo Adjustment")
+abline(h = 0, col = 'red')
+```
+
+
+## Analysis of Elo Ratings for One Team:
+
+> I decided to analyze the 2022 Pittsburgh Steelers throughout the season. The side-by-side plots display the Steeler's postgame and pre-game elo ratings throughout each of their 17 games during the season. Both of these graphs illustrate their starting elo entering the season (being roughly 1511.5 as denoted by the red horizontal line). Looking more closely at both of these graphs, it seemed for the majority of the season that the Pittsburgh Steelers fell below their starting elo rating as they had a rough beginning to start off their season. Specifically, in their first 5 games, the Steelers went 1-4, having 1 win and 4 losses. Thus, their pre-game and post-game elo rating dropped consistently to just under 1460. Then, it started to get inconsistent a bit during the middle of the season - as shown by the multiple spikes (ups and downs) during games 5 - 12. However, to close off their last 7 regular season games during the 2022 season, the Steelers won 6 games and only lost once. Thus, this consistently increased their elo ratings - to where their ending elo ratings for the season were surprisingly greater than their starting elo rating. 
+
+> Finally, the 3rd plot illustrates the Steeler's win probability for each of their 17 games. I thought this would be interesting to include because it sort of mimics what I talked earlier about their elo ratings during their inconsistent season. Specifically, they seemed to be the favorites during the beginning of the season, then they became big underdogs during the middle of their season, and their win probability started to increase and improve at the end of the season. Thus, the multiple visualizations were pretty interesting to see the changes in the elo ratings for the Pittsburgh Steelers throughout the 2022 NFL season because they started off poorly, creating their elo ratings to drop below their preseason elo rating; however, the last 7 games is where they improved dramatically, going 6 - 1, which brought up their final season elo rating passed the beginning - which looked nearly impossible to happen.  
+
+
+
+## Conclusions/Takeaways:
+
+> To wrap up my big data analysis project on the NFL seasons 1970 - 2022, there were a few interesting details worthwhile mentioning. To recap, I started by visually showing the average scoring distributions of each of the current 32 NFL teams - both points scored and points allowed throughout the span of 52 seasons/years. The visualization shows that teams generally, on average, score more points than they allow, while being able to inflate their offensive scoring and stabilizing a stronger defense. I supported these observations through several plots to help show the different aspects that relate to the scoring distribution. For instance, when we look at the scoring distributions of home and away teams, 28 out of the 32 NFL teams had a positive difference between home scores and away scores, suggesting the majority of teams score higher, on average, during their home games then they do on the road (at their opponents' stadium). Likewise, a couple of histograms were plotted to show the distribution and trends of both points scored and allowed, respectively - where points scored were larger and had a bigger center than points allowed for a majority of teams. This makes logical sense since we later dived into elo ratings and simulations where it considered home field advantages when creating expected probabilities, elo ratings, and winning percentages. 
+	
+> After looking at the scoring distributions and summary statistics, I dived into the trend of this aspect. After plotting a histogram of the frequencies for score differentials in games (meaning the difference in the winning and losing team at the end of the game), I noticed that the trend could have been more systematic and more systematic. To further validate this, I created a normality plot where a good majority of points fit along the diagonal line, where it started to deviate a bit during both extremes. This can be solidified because huge blowouts do not occur that often - such as a 70 - 20 game that we had in the 2023 season where the Dolphins blew out the Broncos. 
+
+> Moving on to the Pythagorean winning percentage, some things were to be expected such as the actual winning percentages, Pythagorean winning percentage, and errors between the two. The two winning percentages were roughly centered and had an average of close to 50%, which makes logical sense because a team either wins or loses, with ties being a rare occurrence. However, the errors were a bit skewed to the right, meaning errors generally had negative values close to -0.1  and -0.05. This suggests that the Pythagorean winning percentage is slightly overpredicting the actual winning percentage since the error is calculated by: actual wins - predicted wins. In other words, the Pythagorean winning percentage, on average, believes that teams have a higher winning percentage than they truly achieved. However, this error is very small and very close to 0, so I figured it was pretty accurate, abstractively. I decided to create a scatterplot against these two and validated the idea of both winning percentages being relatively close to each other. For the most part, the points follow along and are very close to the black line that has a slope of 1, meaning both actual and Pythagorean winning percentages were the same. Thus, this concluded that there was no worry about the very minimal negative error. Finally, when looking at the actual winning percentage against the predicted, the 2022 Minnesota Vikings overachieved the most - as they achieved a winning percentage of 76.5%, whereas the model only predicted them having a winning percentage of 49.5%. The reason behind this is that they had 11 close games, where they won all 11 games by 8 points or fewer. This is my hypothesis as to why they produced more wins than predicted by such a large residual than what the Pythagorean winning percentage predicted. In contrast, the 2020 Atlanta Falcons underachieved the most, where they did poorly during the season, only producing a winning percentage of 25%, compared to the Pytgaorean percentage predicting 46.83%.  
+
+> Furthermore, I decided to only focus on the past season, 2022, to produce the Bradley Terry model, calculate the Elo ratings, and run the Monte Carlo simulation. Looking at the Bradley Terry model, specifically, the top ratings of the adjusted coefficient values make sense. For instance, the top values were the Buffalo Bills, Dallas Cowboys, Philadelphia Eagles, Kansas City Chiefs, Baltimore Ravens, San Fransisco 49ners, and Cincinnati Bengals, and all these teams made the playoffs that year. Comparing the results to the Elo ratings, the model predicted that the Kansas City Chiefs and Buffalo Bills were the top two teams that season, which is very much consistent with the Bradley Terry ratings. Similarly, if we look at the “results” data frame under the ending elo column, we can sort the ratings in descending order. Here, the ending elos line up very closely with the Bradley Terry model that identified the largest rating/coefficient. Thus, almost all the teams that had the largest values in the Bradley Terry model also have the largest ending elos with the exception of the Baltimore Ravens, where the Steelers and Packers ended with a higher elo rating. Looking closer, this should not be a big concern because the Packers barely had a higher ending elo rating by less than 0.4. Likewise, the Steelers upset many teams, such as Tom Brady and the Buccaneers, and ended the season going 6 - 1. Thus, this is my belief as to why they ended up with a slightly higher elo rating than the Ravens. However, the elo ratings aligned very well with the Bradley Terry ratings, having a majority of the teams going into the playoffs and winning their respective divisions. 
+
+> Transitioning into the Monte Carlo simulation for the 2022 season, the top teams, in terms of division titles, were consistent with the Bradley Terry model and elo ratings calculated - such as the Chiefs and Bills being the top two teams that would win the most division titles. However, one very interesting thing I noticed was the Buccaneers being listed as number three for the most division titles, and there are two logical answers/hypotheses that I could come up with: the Buccaneers had Tom Brady and their division was relatively easier than the afc north, for instance. Looking at their residuals, which is the actual wins minus the predicted/simulated wins, the Buccaneers had a large negative residual (top 6), suggesting that the simulation predicted the team to have more wins than they truly had. To validate that, I checked these two values and noticed the model predicted, on average, of the Buccaneers having 10.19 wins, whereas they only had 8 wins that season. Thus, this makes sense to why the Buccaneers were in the top three for division titles. The two lowest teams the the end of season were the Texans and Bears. This is consistent with the Bradley Terry model as both teams were in the bottom 3, with negative rating values. Likewise, both teams had the least amount of wins during the season and the lowest elo ratings values. Overall, when looking at the 2022 NFL season, the top and bottom teams were all consistent across the Bradley Terry model, accessing the elo ratings, and running the Monte Carlo system.
+
+
+
+
+
+
+
